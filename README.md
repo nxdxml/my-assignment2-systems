@@ -1,3 +1,12 @@
+### ✅ TODO List
+- [ ] 所有test
+- [ ] Mixed Precision
+- [ ] FA2
+
+
+
+---
+
 # CS336 Spring 2025 Assignment 2: Systems
 
 For a full description of the assignment, see the assignment handout at

@@ -1,11 +1,13 @@
 ### ✅ TODO List
+- [x] Mixed Precision
 - [ ] 所有test
-- [ ] Mixed Precision
 - [ ] FA2
+- [ ] memory use profile
 
 
 
 ---
+原仓库配置
 
 # CS336 Spring 2025 Assignment 2: Systems
 

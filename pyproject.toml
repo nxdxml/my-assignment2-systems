@@ -3,7 +3,7 @@ name = "cs336-systems"
 version = "1.0.4"
 description = "CS336 Assignment 2 - Systems"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.12"
 dependencies = [
     "cs336-basics",
     "humanfriendly",

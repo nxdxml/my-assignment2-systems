@@ -4,8 +4,9 @@ from typing import Type
 
 import torch
 
-from cs336_systems.FA2 import FA2_Torch
+from cs336_systems.FA2 import FA2_Torch, FA2_Tririon
 
+# done
 def get_flashattention_autograd_function_pytorch() -> Type:
     """
     Returns a torch.autograd.Function subclass that implements RMSNorm.
@@ -32,7 +33,7 @@ def get_flashattention_autograd_function_triton() -> Type:
         A class object (not an instance of the class)
     """
     # For example: return MyTritonRMSNormAutogradFunctionClass
-    raise NotImplementedError
+    return FA2_Tririon
 
 
 def get_ddp_individual_parameters(module: torch.nn.Module) -> torch.nn.Module:

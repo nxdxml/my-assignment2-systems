@@ -58,7 +58,48 @@ class FA2_Torch(torch.autograd.Function):
     # 可以不用实现
     @staticmethod
     def backward(ctx, grad_output):
-        raise NotImplementedError("Backward not implemented.")
+        Q, K, V,O, L = ctx.saved_tensors  # L 是 logsumexp 值 [B, N_q]
+        B, N_q, d = Q.shape
+        _, N_k, _ = K.shape
+        d_sqrt = math.sqrt(d)
+
+        dQ = torch.zeros_like(Q)
+        dK = torch.zeros_like(K)
+        dV = torch.zeros_like(V)
+
+        for b in range(B):
+            Q_b = Q[b]  # [N_q, d]
+            K_b = K[b]  # [N_k, d]
+            V_b = V[b]  # [N_k, d]
+            O_b = O[b]
+            L_b = L[b]  # [N_q]
+            dO_b = grad_output[b]  # [N_q, d]
+
+            # === (13) S = QK^T / sqrt(d)
+            S = Q_b @ K_b.T / d_sqrt  # [N_q, N_k]
+
+            # === (14) P_ij = exp(S_ij - L_i) = attention probs (not normalized)
+            # L is logsumexp, so exp(S - L[:, None]) gives P
+            P = torch.exp(S - L_b[:, None])  # [N_q, N_k]
+
+            # === (15) dV = P^T @ dO
+            dV[b] = P.T @ dO_b  # [N_k, d]
+
+            # === (16) dP = dO @ V^T
+            dP = dO_b @ V_b.T  # [N_q, N_k]
+
+            # === (17) dS = P * (dP - Di)
+            Di = (O_b * dO_b).sum(dim=-1, keepdim=True) 
+
+            dS = P * (dP - Di)  # [N_q, N_k]
+
+            # === (18) dQ = dS @ K / sqrt(d)
+            dQ[b] = dS @ K_b / d_sqrt
+
+            # === (19) dK = dS^T @ Q / sqrt(d)
+            dK[b] = dS.T @ Q_b / d_sqrt
+
+        return dQ, dK, dV, None  # is_causal has no gradient
 
 
 class FA2_Tririon(torch.autograd.Function):
@@ -75,8 +116,8 @@ class FA2_Tririon(torch.autograd.Function):
         O = torch.empty((B, N_q, d), device=device, dtype=dtype)
         L = torch.empty((B, N_q), device=device, dtype=dtype)
         
-        T_q = (N_q + B_q - 1) // B_q # Q 分成多少块[B_q, d]
-        T_k = (N_k + B_k - 1) // B_k # K,V 分成多少块[B_k, d]
+        # T_q = (N_q + B_q - 1) // B_q # Q 分成多少块[B_q, d]
+        # T_k = (N_k + B_k - 1) // B_k # K,V 分成多少块[B_k, d]
 
         scale = 1.0 / math.sqrt(d)
 

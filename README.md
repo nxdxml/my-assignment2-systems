@@ -1,7 +1,9 @@
 ### ✅ TODO List
 - [x] Mixed Precision
+- [x] FA2代码，除trition反向
+- [ ] 并行
 - [ ] 所有test
-- [ ] FA2
+- [ ] FA2对反向的优化，profile等，文档
 - [ ] memory use profile
 
 

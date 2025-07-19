@@ -94,7 +94,9 @@ class FA2_Tririon(torch.autograd.Function):
             d, # d_model
             B_q, # Q维度分块大小
             B_k, # K维度分块大小
+            is_causal, 
         )
+        ctx.save_for_backward(Q, K, V, O, L)
         return O
 
     @staticmethod
@@ -116,6 +118,7 @@ def flash_fwd_kernel(
     D: tl.constexpr, # d_model
     Q_TILE_SIZE: tl.constexpr, # Q维度分块大小
     K_TILE_SIZE: tl.constexpr, # K维度分块大小
+    is_casual : tl.constexpr, # 
 ):
     # 每个block自动不同
     query_tile_index = tl.program_id(0) # blockIdx.x
@@ -163,7 +166,7 @@ def flash_fwd_kernel(
         L_ptr + batch_index * stride_lb, # L的起始点
         shape=(N_QUERIES,), # 处理数据的大小
         strides=(stride_lq,), # 维度跳跃stride
-        offsets=(query_tile_index * Q_TILE_SIZE, 0), # 取L的起始地址
+        offsets=(query_tile_index * Q_TILE_SIZE,), # 取L的起始地址
         block_shape=(Q_TILE_SIZE,), # tile大小
         order=(0,), # 先列后行访问
     )
@@ -176,6 +179,10 @@ def flash_fwd_kernel(
 
     # d_sqrt = math.sqrt(D)
 
+    # 移到前面避免反复计算
+    if is_casual:
+        q_idx = query_tile_index * Q_TILE_SIZE + tl.arange(0, Q_TILE_SIZE) # [B_q]
+
     for j in range(tl.cdiv(N_KEYS, K_TILE_SIZE)):
         # 加载数据
         K_j = tl.load(K_block_ptr)
@@ -183,6 +190,11 @@ def flash_fwd_kernel(
         # S_i_j = einsum(Q_i, K_j, "B_q d, B_k d -> B_q B_k") / d_sqrt
         S_i_j = tl.dot(Q_i, tl.trans(K_j)) * scale
 
+        # 加入mask
+        if is_casual:
+            k_idx = j * K_TILE_SIZE + tl.arange(0, K_TILE_SIZE) # [B_k]
+            mask = k_idx[None, :] <= q_idx[:, None] # [B_q, B_k] k在q后为false
+            S_i_j = tl.where(mask, S_i_j, float("-inf")) # 屏蔽false
 
         # m_i_j = torch.maximum(m_i_0, S_i_j.max(dim=-1).values)
         m_i_j = tl.maximum(m_i_0, tl.max(S_i_j, axis=1))
@@ -201,8 +213,8 @@ def flash_fwd_kernel(
         m_i_0 = m_i_j
 
         # 移动指针,原地操作这里作业pdf例子可能有问题
-        K_block_ptr.advance((K_TILE_SIZE, ))
-        V_block_ptr.advance((K_TILE_SIZE, ))
+        K_block_ptr = K_block_ptr.advance((K_TILE_SIZE, 0))
+        V_block_ptr = V_block_ptr.advance((K_TILE_SIZE, 0))
 
     # O_i = O_i_0 / l_i_0.unsqueeze(-1)
     O_i = O_i_0 / l_i_0[:, None]

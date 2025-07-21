@@ -1,7 +1,7 @@
 ### ✅ TODO List
 - [x] Mixed Precision
 - [x] FA2代码，除trition反向
-- [ ] 并行
+- [x] 并行，完成文档，缺比较难写的实验DDP重叠通信计算的优化
 - [ ] 所有test
 - [ ] FA2对反向的优化，profile等，文档
 - [ ] memory use profile

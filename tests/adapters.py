@@ -19,7 +19,7 @@ def get_flashattention_autograd_function_pytorch() -> Type:
     # For example: return MyRMSNormAutogradFunctionClass
     return FA2_Torch
 
-
+# done
 def get_flashattention_autograd_function_triton() -> Type:
     """
     Returns a torch.autograd.Function subclass that implements RMSNorm
